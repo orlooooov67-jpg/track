@@ -230,17 +230,17 @@
     <div style="overflow-x:auto;">
       <table id="dailyTable"><thead></thead><tbody></tbody></table>
     </div>
-    <div class="empty" id="emptyState" style="display:none;">Пока нет данных. Заполните форму выше и нажмите «Сохранить». Клик по строке в этой таблице открывает день для правки.</div>
+    <div class="empty" id="emptyState" style="display:none;">Пока нет данных. Заполните форму выше и нажмите «Сохранить». Клик по строке открывает её для редактирования.</div>
   </div>
 
 </div>
 
 <script>
-// ===== Storm Mail: подключение напрямую к Google Таблице через Apps Script =====
+// ===== Трекер лидов: подключение напрямую к Google Таблице через Apps Script =====
 // URL веб-приложения хранится в localStorage этого браузера (не в коде),
 // поэтому его можно сменить в любой момент через панель "Подключение".
 const CONFIG_KEY = 'lead-tracker-gas-url';
-let WEB_APP_URL = localStorage.getItem(CONFIG_KEY) || '';
+let WEB_APP_URL = localStorage.getItem(CONFIG_KEY) || 'https://script.google.com/macros/s/AKfycbxxwBI09CnBrwb0JuB7A8-gtW_91h7JwKO19ROZygTxzH7rm_snpAJmL0CSK0LPB5ET/exec';
 
 const METRIC_HEADERS = ['Дата','Открыто','Кликнуло','Трекер→CRM','Зашло в CRM','Отправлено','Дубли','Не отправлено'];
 const METRICS = [
@@ -289,13 +289,31 @@ async function gasPost(payload){
   return data;
 }
 
+function formatDateToISO(dateVal) {
+  let dateStr;
+  if (dateVal instanceof Date) {
+    dateStr = dateVal.getFullYear() + '-' + String(dateVal.getMonth() + 1).padStart(2, '0') + '-' + String(dateVal.getDate()).padStart(2, '0');
+  } else if (typeof dateVal === 'string' && dateVal.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    dateStr = dateVal;
+  } else if (typeof dateVal === 'string') {
+    // Попытка распарсить как дату
+    const d = new Date(dateVal);
+    dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  } else if (typeof dateVal === 'number') {
+    // Мог быть Excel serial number
+    const d = new Date((dateVal - 25569) * 86400 * 1000);
+    dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  } else {
+    dateStr = String(dateVal);
+  }
+  return dateStr;
+}
+
 function rowsToEntries(headers, rows){
   const statusNames = headers.slice(METRIC_HEADERS.length);
   const entries = rows.map(row=>{
     const dateRaw = row[0];
-    const date = dateRaw instanceof Date
-      ? (dateRaw.getFullYear()+'-'+String(dateRaw.getMonth()+1).padStart(2,'0')+'-'+String(dateRaw.getDate()).padStart(2,'0'))
-      : String(dateRaw);
+    const date = formatDateToISO(dateRaw);
     const metrics = {};
     METRIC_KEYS.forEach((key,i)=>{ metrics[key] = Number(row[i+1]) || 0; });
     const statuses = {};
@@ -441,7 +459,7 @@ async function loadEntryIntoForm(date){
   });
   renderStatusRows(existing ? existing.statuses : {});
   msg.className = '';
-  msg.textContent = existing ? 'Загружена существующая запись за этот день — можно править или удалить.' : 'За этот день данных ещё нет.';
+  msg.textContent = existing ? 'Загружена существующая запись за этот день — можно править или удалить.' : 'За этот день данных нет — новая запись.';
   deleteBtn.style.display = existing ? 'inline-block' : 'none';
 }
 
