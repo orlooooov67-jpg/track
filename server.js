@@ -1,9 +1,17 @@
 /**
  * Storm Mail — backend API
  *
- * Единственный источник правды для трекера лидов: все страницы
- * (на любых компьютерах) читают и пишут в одну и ту же базу Postgres,
- * поэтому данные всегда одинаковые везде, а не "разные на разных компах".
+ * Источник правды: Postgres (Railway). Все страницы (на любых компьютерах)
+ * читают и пишут в одну и ту же базу, поэтому данные всегда одинаковые везде.
+ *
+ * Дополнительно: при каждом сохранении записи сервер дублирует те же данные
+ * в Google Таблицу через веб-приложение Apps Script (см. GOOGLE_SHEETS_WEBHOOK_URL
+ * ниже). Это just-in-case резервная копия/журнал — сайт её не читает обратно,
+ * читает и показывает всегда только Postgres.
+ *
+ * ВАЖНО: удаление записи (DELETE /api/entries/:date) НЕ удаляет строку
+ * из Google Таблицы — текущий Apps Script код не поддерживает удаление,
+ * только добавление/перезапись. Таблица накапливает историю.
  *
  * Деплой: Railway.
  *  1. Railway → New Project → Deploy from GitHub repo → выбрать этот репозиторий/папку.
@@ -12,10 +20,11 @@
  *  3. (необязательно, но рекомендуется) Settings → Variables → добавить API_KEY
  *     с любым секретным значением — тогда API будет проверять заголовок x-api-key.
  *     Это значение нужно будет указать в HTML-странице (константа API_KEY).
- *  4. Settings → Networking → Generate Domain — получите публичный URL вида
+ *  4. Settings → Variables → добавить GOOGLE_SHEETS_WEBHOOK_URL со значением
+ *     вашего /exec адреса Apps Script (или просто оставить дефолт ниже в коде).
+ *  5. Settings → Networking → Generate Domain — получите публичный URL вида
  *     https://storm-mail-backend-production.up.railway.app
- *  5. Этот же сервис теперь отдаёт и саму страницу index.html по адресу "/" —
- *     отдельно хостить на GitHub Pages не нужно.
+ *  6. Этот же сервис отдаёт и саму страницу index.html по адресу "/".
  */
 
 const path = require('path');
@@ -32,6 +41,11 @@ app.use(express.static(path.join(__dirname)));
 
 const API_KEY = process.env.API_KEY || '';
 const DEFAULT_STATUSES = ['CallBack', 'Hung Up', 'Depositor', 'N/A', 'No Interest', 'Wrong info', 'Wrong Number', 'Wrong Country', 'Trash', 'Other'];
+
+// Адрес веб-приложения Apps Script (заканчивается на /exec). Можно переопределить
+// переменной окружения GOOGLE_SHEETS_WEBHOOK_URL в Railway, не трогая код.
+const GOOGLE_SHEETS_WEBHOOK_URL = process.env.GOOGLE_SHEETS_WEBHOOK_URL
+  || 'https://script.google.com/macros/s/AKfycbxxwBI09CnBrwb0JuB7A8-gtW_91h7JwKO19ROZygTxzH7rm_snpAJmL0CSK0LPB5ET/exec';
 
 // Простая защита ключом (опционально). Если API_KEY не задан на сервере — открыт всем.
 app.use((req, res, next) => {
@@ -65,6 +79,26 @@ async function initDb() {
       value JSONB NOT NULL
     );
   `);
+}
+
+// Дублирует запись за день в Google Таблицу. Никогда не бросает исключение
+// наружу — если Google недоступен, основной ответ сайту всё равно уйдёт
+// успешно (Postgres — источник правды, Sheets — просто зеркало).
+async function mirrorToGoogleSheets(date, metrics, statuses) {
+  if (!GOOGLE_SHEETS_WEBHOOK_URL) return;
+  try {
+    const res = await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, metrics, statuses }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!data || data.ok !== true) {
+      console.error('Google Sheets sync: сервер Apps Script ответил ошибкой:', data && data.error);
+    }
+  } catch (err) {
+    console.error('Google Sheets sync: не удалось отправить данные:', err.message);
+  }
 }
 
 // Главная страница — отдаём саму HTML-страницу трекера вместо текстовой заглушки.
@@ -103,7 +137,8 @@ app.get('/api/entries/:date', async (req, res) => {
 });
 
 // Полная перезапись значений за дату (не накопление) — страница всегда
-// присылает актуальное состояние дня целиком.
+// присылает актуальное состояние дня целиком. После успешной записи в
+// Postgres то же самое дублируется в Google Таблицу.
 app.put('/api/entries/:date', async (req, res) => {
   try {
     const date = req.params.date;
@@ -116,6 +151,9 @@ app.put('/api/entries/:date', async (req, res) => {
       [date, JSON.stringify(metrics), JSON.stringify(statuses)]
     );
     res.json({ ok: true });
+    // Дублирование в Google Таблицу выполняется уже после ответа сайту,
+    // чтобы не задерживать сохранение, если Google отвечает медленно.
+    mirrorToGoogleSheets(date, metrics, statuses);
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -125,6 +163,8 @@ app.delete('/api/entries/:date', async (req, res) => {
   try {
     await pool.query('DELETE FROM entries WHERE date = $1', [req.params.date]);
     res.json({ ok: true });
+    // Примечание: в Google Таблице строка НЕ удаляется — Apps Script
+    // сейчас не поддерживает удаление, только добавление/обновление.
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
