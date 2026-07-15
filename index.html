@@ -160,7 +160,7 @@
   <details class="panel" id="cfgPanel">
     <summary>Подключение к Google Таблице</summary>
     <div class="hint">
-      Вставьте сюда URL Web App вашего Apps Script (см. инструкцию под полем ввода). Данные всегда сохраняются локально в браузере, даже без подключения — таблица нужна только для общего хранения и бэкапа.
+      Вставьте сюда URL Web App вашего Apps Script (см. инструкцию под полем ввода). Данные всегда сохраняются локально в браузере, даже без подключения — таблица нужна только для общего хранения и бэкапа. Выбрав дату, на которую уже есть запись, вы увидите и сможете поправить её — сохранение полностью перезапишет значения за этот день (и в таблице, и в тотале).
     </div>
     <div class="cfg-row">
       <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/.../exec">
@@ -170,7 +170,7 @@
     <div class="hint" id="cfgHelp"></div>
     <div class="cfg-row" style="margin-top:18px;border-top:1px dashed var(--line);padding-top:16px;">
       <button class="btn danger" id="resetBtn" type="button">Стереть все локальные данные</button>
-      <span class="hint" style="margin:0;">Удалит локально сохранённые дни, статусы и URL таблицы на этом устройстве (localStorage браузера). В самой Google Таблице данные не тронет.</span>
+      <span class="hint" style="margin:0;">Удалит локально сохранённые дни, статусы и URL таблицы на этом устройстве. В самой Google Таблице данные не тронет.</span>
     </div>
   </details>
 
@@ -193,7 +193,7 @@
     </div>
 
     <div class="save-row">
-      <button class="btn" id="saveBtn">Сохранить и приплюсовать</button>
+      <button class="btn" id="saveBtn">Сохранить запись за день</button>
       <span id="saveMsg"></span>
     </div>
   </div>
@@ -210,6 +210,11 @@
   </div>
 
   <div class="panel">
+    <h2>Статусы — итого по всем дням</h2>
+    <div class="cards" id="statusTotals"></div>
+  </div>
+
+  <div class="panel">
     <h2 style="display:flex;justify-content:space-between;">
       <span>По дням</span>
       <button class="btn ghost small" id="refreshBtn">↻ обновить из таблицы</button>
@@ -217,42 +222,12 @@
     <div style="overflow-x:auto;">
       <table id="dailyTable"><thead></thead><tbody></tbody></table>
     </div>
-    <div class="empty" id="emptyState" style="display:none;">Пока нет данных. Заполните форму выше и нажмите «Сохранить».</div>
+    <div class="empty" id="emptyState" style="display:none;">Пока нет данных. Заполните форму выше и нажмите «Сохранить». Клик по строке в этой таблице открывает день для правки.</div>
   </div>
 
 </div>
 
 <script>
-// Полифилл window.storage поверх обычного localStorage браузера.
-// Нужен только для автономного хостинга (GitHub Pages и т.п.) —
-// внутри Claude.ai используется настоящее персистентное хранилище.
-// Данные хранятся локально в браузере на этом устройстве.
-if (!window.storage) {
-  window.storage = {
-    async get(key) {
-      const v = localStorage.getItem(key);
-      if (v === null) throw new Error('not found');
-      return { key, value: v, shared: false };
-    },
-    async set(key, value) {
-      localStorage.setItem(key, value);
-      return { key, value, shared: false };
-    },
-    async delete(key) {
-      localStorage.removeItem(key);
-      return { key, deleted: true, shared: false };
-    },
-    async list(prefix) {
-      const keys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (!prefix || k.startsWith(prefix)) keys.push(k);
-      }
-      return { keys, prefix, shared: false };
-    }
-  };
-}
-
 const METRICS = [
   {key:'opened', label:'Открыто сообщение'},
   {key:'clicked', label:'Кликнуло'},
@@ -264,6 +239,7 @@ const METRICS = [
 ];
 const CFG_URL_KEY = 'webapp-url';
 const STATUS_LIST_KEY = 'statuses-list';
+const DEFAULT_STATUSES = ['CallBack','Hung Up','Depositor','N/A','No Interest','Wrong info','Wrong Number','Wrong Country','Trash','Other'];
 
 let statusList = [];
 let cfgUrl = '';
@@ -288,7 +264,8 @@ function buildMetricsGrid(){
   `).join('');
 }
 
-function renderStatusRows(){
+function renderStatusRows(values){
+  values = values || {};
   const el = document.getElementById('statusRows');
   if(!statusList.length){
     el.innerHTML = '<div class="hint">Статусов пока нет — добавьте первый ниже.</div>';
@@ -297,10 +274,20 @@ function renderStatusRows(){
   el.innerHTML = statusList.map(name => `
     <div class="status-row" data-name="${name}">
       <span class="sname">${name}</span>
-      <input type="number" min="0" class="statusCount" placeholder="0">
+      <input type="number" min="0" class="statusCount" placeholder="0" value="${values[name] ? values[name] : ''}">
       <button class="btn danger small" onclick="removeStatus('${name.replace(/'/g,"\\'")}')">✕</button>
     </div>
   `).join('');
+}
+
+function collectStatusValuesFromForm(){
+  const vals = {};
+  document.querySelectorAll('.status-row').forEach(row=>{
+    const name = row.getAttribute('data-name');
+    const v = Number(row.querySelector('.statusCount').value) || 0;
+    if(v) vals[name] = v;
+  });
+  return vals;
 }
 
 async function loadStatuses(){
@@ -308,6 +295,10 @@ async function loadStatuses(){
     const r = await window.storage.get(STATUS_LIST_KEY, false);
     statusList = r ? JSON.parse(r.value) : [];
   }catch(e){ statusList = []; }
+  if(!statusList.length){
+    statusList = [...DEFAULT_STATUSES];
+    await saveStatusList();
+  }
   renderStatusRows();
 }
 
@@ -320,16 +311,19 @@ async function addStatus(){
   const name = input.value.trim();
   if(!name) return;
   if(statusList.includes(name)){ input.value=''; return; }
+  const vals = collectStatusValuesFromForm();
   statusList.push(name);
   await saveStatusList();
-  renderStatusRows();
+  renderStatusRows(vals);
   input.value='';
 }
 
 async function removeStatus(name){
+  const vals = collectStatusValuesFromForm();
+  delete vals[name];
   statusList = statusList.filter(s=>s!==name);
   await saveStatusList();
-  renderStatusRows();
+  renderStatusRows(vals);
 }
 window.removeStatus = removeStatus;
 
@@ -360,11 +354,7 @@ async function saveConfig(){
   updateConnPill();
   const help = document.getElementById('cfgHelp');
   help.textContent = 'Сохранено.';
-  setTimeout(()=>help.textContent=deployInstructions(),1500);
-}
-
-function deployInstructions(){
-  return 'Инструкция по подключению — см. текст под панелью ниже в чате (код Apps Script + шаги деплоя).';
+  setTimeout(()=>help.textContent='',1500);
 }
 
 async function testConfig(){
@@ -380,7 +370,7 @@ async function testConfig(){
   }
 }
 
-// ---- entries ----
+// ---- entries (локальная "база данных") ----
 function entryKey(date){ return 'entry:'+date; }
 
 async function getEntry(date){
@@ -417,42 +407,41 @@ function emptyMetrics(){
   return m;
 }
 
+function emptyStatusesObject(){
+  const o = {};
+  statusList.forEach(s=>o[s]=0);
+  return o;
+}
+
+async function loadEntryIntoForm(date){
+  const existing = await getEntry(date);
+  METRICS.forEach(m=>{
+    const el = document.getElementById('m_'+m.key);
+    el.value = (existing && existing.metrics && existing.metrics[m.key]) ? existing.metrics[m.key] : '';
+  });
+  renderStatusRows(existing ? existing.statuses : {});
+  const msg = document.getElementById('saveMsg');
+  msg.className = '';
+  msg.textContent = existing ? 'Загружена существующая запись за этот день — можно править.' : 'За этот день данных ещё нет.';
+}
+
 async function saveEntry(){
   const msg = document.getElementById('saveMsg');
   const date = document.getElementById('dateInput').value || todayStr();
 
-  const delta = { metrics: emptyMetrics(), statuses: {} };
+  const metrics = emptyMetrics();
   METRICS.forEach(m=>{
-    const v = Number(document.getElementById('m_'+m.key).value) || 0;
-    delta.metrics[m.key] = v;
+    metrics[m.key] = Number(document.getElementById('m_'+m.key).value) || 0;
   });
+
+  const statuses = emptyStatusesObject();
   document.querySelectorAll('.status-row').forEach(row=>{
     const name = row.getAttribute('data-name');
-    const v = Number(row.querySelector('.statusCount').value) || 0;
-    if(v) delta.statuses[name] = v;
+    statuses[name] = Number(row.querySelector('.statusCount').value) || 0;
   });
 
-  const hasAny = Object.values(delta.metrics).some(v=>v>0) || Object.values(delta.statuses).some(v=>v>0);
-  if(!hasAny){
-    msg.textContent = 'Заполните хотя бы одно значение.';
-    msg.className = 'err';
-    return;
-  }
-
-  // accumulate locally
-  const existing = await getEntry(date) || {metrics:emptyMetrics(), statuses:{}};
-  const merged = {metrics:{...emptyMetrics()}, statuses:{...existing.statuses}};
-  METRICS.forEach(m=>{
-    merged.metrics[m.key] = (existing.metrics[m.key]||0) + delta.metrics[m.key];
-  });
-  Object.keys(delta.statuses).forEach(name=>{
-    merged.statuses[name] = (existing.statuses[name]||0) + delta.statuses[name];
-  });
-  await setEntry(date, merged);
-
-  // clear inputs
-  METRICS.forEach(m=>document.getElementById('m_'+m.key).value='');
-  document.querySelectorAll('.statusCount').forEach(i=>i.value='');
+  const record = {metrics, statuses};
+  await setEntry(date, record);
 
   msg.textContent = 'Сохранено локально' + (cfgUrl ? ', отправляю в таблицу...' : '.');
   msg.className='ok';
@@ -462,9 +451,9 @@ async function saveEntry(){
       await fetch(cfgUrl, {
         method:'POST',
         headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({date, metrics:delta.metrics, statuses:delta.statuses})
+        body: JSON.stringify({date, metrics, statuses})
       });
-      msg.textContent = 'Сохранено и отправлено в Google Таблицу ✓';
+      msg.textContent = 'Сохранено и записано в Google Таблицу ✓ (' + fmtDate(date) + ')';
     }catch(e){
       msg.textContent = 'Сохранено локально. В таблицу не отправилось (' + e.message + ') — нажмите «обновить» позже.';
       msg.className = 'err';
@@ -478,6 +467,7 @@ async function saveEntry(){
 async function renderAll(){
   const entries = await getAllEntries();
   renderTotalsAndFunnel(entries);
+  renderStatusTotals(entries);
   renderTable(entries);
 }
 
@@ -530,6 +520,28 @@ function renderTotalsAndFunnel(entries){
   `;
 }
 
+function renderStatusTotals(entries){
+  const el = document.getElementById('statusTotals');
+  const sums = {};
+  const allNames = new Set(statusList);
+  entries.forEach(e=> Object.keys(e.statuses||{}).forEach(n=>allNames.add(n)));
+  const names = Array.from(allNames);
+  names.forEach(n=>sums[n]=0);
+  entries.forEach(e=>{
+    Object.entries(e.statuses||{}).forEach(([n,v])=>{ sums[n] = (sums[n]||0) + (Number(v)||0); });
+  });
+  if(!names.length){
+    el.innerHTML = '<div class="hint">Статусов ещё нет.</div>';
+    return;
+  }
+  el.innerHTML = names.map(n=>`
+    <div class="card">
+      <div class="v">${(sums[n]||0).toLocaleString('ru-RU')}</div>
+      <div class="k">${n}</div>
+    </div>
+  `).join('');
+}
+
 function renderTable(entries){
   const thead = document.querySelector('#dailyTable thead');
   const tbody = document.querySelector('#dailyTable tbody');
@@ -542,14 +554,26 @@ function renderTable(entries){
   }
   emptyState.style.display='none';
 
-  thead.innerHTML = '<tr><th>Дата</th>' + METRICS.map(m=>`<th>${m.label}</th>`).join('') + '<th>Статусы</th></tr>';
+  thead.innerHTML = '<tr><th>Дата</th>' + METRICS.map(m=>`<th>${m.label}</th>`).join('') + '<th>Статусы</th><th></th></tr>';
   tbody.innerHTML = entries.map(e=>{
     const statusTags = Object.entries(e.statuses||{}).filter(([,v])=>v>0)
       .map(([k,v])=>`<span class="tag">${k}: ${v}</span>`).join('');
-    return '<tr><td>'+fmtDate(e.date)+'</td>' +
+    return `<tr class="editable-row" data-date="${e.date}">` +
+      '<td>'+fmtDate(e.date)+'</td>' +
       METRICS.map(m=>`<td>${(e.metrics[m.key]||0).toLocaleString('ru-RU')}</td>`).join('') +
-      `<td><div class="tags">${statusTags || '—'}</div></td></tr>`;
+      `<td><div class="tags">${statusTags || '—'}</div></td>` +
+      `<td><span class="tag" style="color:var(--amber);border-color:var(--amber);white-space:nowrap;">✎ править</span></td></tr>`;
   }).join('');
+
+  tbody.querySelectorAll('tr.editable-row').forEach(row=>{
+    row.addEventListener('click', async ()=>{
+      const date = row.getAttribute('data-date');
+      document.getElementById('dateInput').value = date;
+      updateDateEcho();
+      await loadEntryIntoForm(date);
+      document.querySelectorAll('.panel')[1].scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
 }
 
 async function refreshFromSheet(){
@@ -579,9 +603,10 @@ async function refreshFromSheet(){
         statusCols.forEach(sc=>{ if(!statusList.includes(sc.h)) statusList.push(sc.h); });
       }
       await saveStatusList();
-      renderStatusRows();
     }
     await renderAll();
+    const d = document.getElementById('dateInput').value || todayStr();
+    await loadEntryIntoForm(d);
     btn.textContent = '↻ обновить из таблицы';
   }catch(e){
     alert('Не удалось получить данные: ' + e.message);
@@ -601,7 +626,7 @@ function updateDateEcho(){
 }
 
 async function resetAllData(){
-  const sure = confirm('Стереть все локально сохранённые данные (дни, статусы, URL таблицы) в этом браузере? Действие необратимо. Google Таблицу это не затронет.');
+  const sure = confirm('Стереть все локально сохранённые данные (дни, статусы, URL таблицы) на этом устройстве? Действие необратимо. Google Таблицу это не затронет.');
   if(!sure) return;
   try{
     const list = await window.storage.list('entry:', false);
@@ -621,7 +646,11 @@ async function resetAllData(){
   buildMetricsGrid();
   document.getElementById('dateInput').value = todayStr();
   updateDateEcho();
-  document.getElementById('dateInput').addEventListener('change', updateDateEcho);
+  document.getElementById('dateInput').addEventListener('change', async ()=>{
+    updateDateEcho();
+    const d = document.getElementById('dateInput').value || todayStr();
+    await loadEntryIntoForm(d);
+  });
 
   document.getElementById('saveCfgBtn').addEventListener('click', saveConfig);
   document.getElementById('testCfgBtn').addEventListener('click', testConfig);
@@ -633,6 +662,7 @@ async function resetAllData(){
   await loadConfig();
   await loadStatuses();
   await renderAll();
+  await loadEntryIntoForm(todayStr());
 })();
 </script>
 </body>
