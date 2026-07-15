@@ -168,6 +168,10 @@
       <button class="btn ghost" id="testCfgBtn">Проверить</button>
     </div>
     <div class="hint" id="cfgHelp"></div>
+    <div class="cfg-row" style="margin-top:18px;border-top:1px dashed var(--line);padding-top:16px;">
+      <button class="btn danger" id="resetBtn" type="button">Стереть все локальные данные</button>
+      <span class="hint" style="margin:0;">Удалит локально сохранённые дни, статусы и URL таблицы на этом устройстве (localStorage браузера). В самой Google Таблице данные не тронет.</span>
+    </div>
   </details>
 
   <div class="panel">
@@ -596,6 +600,22 @@ function updateDateEcho(){
   document.getElementById('dateEcho').textContent = d ? fmtDate(d) : '';
 }
 
+async function resetAllData(){
+  const sure = confirm('Стереть все локально сохранённые данные (дни, статусы, URL таблицы) в этом браузере? Действие необратимо. Google Таблицу это не затронет.');
+  if(!sure) return;
+  try{
+    const list = await window.storage.list('entry:', false);
+    if(list && list.keys){
+      for(const k of list.keys){
+        await window.storage.delete(k, false);
+      }
+    }
+  }catch(e){}
+  try{ await window.storage.delete(STATUS_LIST_KEY, false); }catch(e){}
+  try{ await window.storage.delete(CFG_URL_KEY, false); }catch(e){}
+  location.reload();
+}
+
 // ---- init ----
 (async function init(){
   buildMetricsGrid();
@@ -605,6 +625,7 @@ function updateDateEcho(){
 
   document.getElementById('saveCfgBtn').addEventListener('click', saveConfig);
   document.getElementById('testCfgBtn').addEventListener('click', testConfig);
+  document.getElementById('resetBtn').addEventListener('click', resetAllData);
   document.getElementById('addStatusBtn').addEventListener('click', addStatus);
   document.getElementById('saveBtn').addEventListener('click', saveEntry);
   document.getElementById('refreshBtn').addEventListener('click', refreshFromSheet);
