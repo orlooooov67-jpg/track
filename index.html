@@ -259,13 +259,13 @@
       <div class="eyebrow">Ежедневный ввод · накопительная статистика</div>
       <h1>Трекер лидов</h1>
     </div>
-    <div class="status-pill" id="connPill"><span class="dot" id="connDot"></span><span id="connText">Таблица не подключена</span></div>
+    <div class="status-pill" id="connPill"><span class="dot" id="connDot"></span><span id="connText">Проверка соединения...</span></div>
   </div>
 
   <details class="panel" id="cfgPanel">
-    <summary>Подключение к Google Таблице</summary>
+    <summary>Подключение к базе данных</summary>
     <div class="hint">
-      Эта страница жёстко привязана к одной Google Таблице — адрес зашит в код и не меняется отсюда. Все, кто заходит на эту страницу, пишут данные в одну и ту же таблицу. Выбрав дату, на которую уже есть запись, вы увидите и сможете поправить её — сохранение полностью перезапишет значения за этот день (и в таблице, и в тотале).
+      Страница жёстко привязана к одному backend-серверу на Railway — адрес зашит в код. Все, кто открывает эту страницу (с любого компьютера), читают и пишут в одну и ту же базу данных, поэтому данные везде одинаковые. Выбрав дату, на которую уже есть запись, вы увидите и сможете поправить или удалить её — сохранение полностью перезапишет значения за этот день.
     </div>
     <div class="cfg-row">
       <input type="text" id="webAppUrl" readonly>
@@ -273,8 +273,8 @@
     </div>
     <div class="hint" id="cfgHelp"></div>
     <div class="cfg-row" style="margin-top:18px;border-top:1px dashed var(--line);padding-top:16px;">
-      <button class="btn danger" id="resetBtn" type="button">Стереть все локальные данные</button>
-      <span class="hint" style="margin:0;">Удалит локально сохранённые дни и статусы на этом устройстве (localStorage браузера). В самой Google Таблице данные не тронет.</span>
+      <button class="btn ghost" id="resetBtn" type="button">Выйти из аккаунта</button>
+      <span class="hint" style="margin:0;">Данные хранятся в базе на сервере, а не в этом браузере — выход из аккаунта их не затронет.</span>
     </div>
   </details>
 
@@ -298,6 +298,7 @@
 
     <div class="save-row">
       <button class="btn" id="saveBtn">Сохранить запись за день</button>
+      <button class="btn danger" id="deleteBtn" type="button" style="display:none;">Удалить запись за этот день</button>
       <span id="saveMsg"></span>
     </div>
   </div>
@@ -321,7 +322,7 @@
   <div class="panel">
     <h2 style="display:flex;justify-content:space-between;">
       <span>По дням</span>
-      <button class="btn ghost small" id="refreshBtn">↻ обновить из таблицы</button>
+      <button class="btn ghost small" id="refreshBtn">↻ обновить</button>
     </h2>
     <div style="overflow-x:auto;">
       <table id="dailyTable"><thead></thead><tbody></tbody></table>
@@ -332,34 +333,38 @@
 </div>
 
 <script>
-// Полифилл window.storage поверх обычного localStorage браузера.
-// Нужен только для автономного хостинга (GitHub Pages и т.п.) —
-// внутри Claude.ai используется настоящее персистентное хранилище.
-// Данные хранятся локально в браузере на этом устройстве.
-if (!window.storage) {
-  window.storage = {
-    async get(key) {
-      const v = localStorage.getItem(key);
-      if (v === null) throw new Error('not found');
-      return { key, value: v, shared: false };
-    },
-    async set(key, value) {
-      localStorage.setItem(key, value);
-      return { key, value, shared: false };
-    },
-    async delete(key) {
-      localStorage.removeItem(key);
-      return { key, deleted: true, shared: false };
-    },
-    async list(prefix) {
-      const keys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (!prefix || k.startsWith(prefix)) keys.push(k);
-      }
-      return { keys, prefix, shared: false };
-    }
-  };
+// ===== Storm Mail: подключение к backend API (Railway + Postgres) =====
+// Единая база данных для всех устройств — данные больше не хранятся
+// в localStorage браузера, поэтому на разных компьютерах всегда
+// одна и та же картина.
+//
+// !!! ПОСЛЕ ДЕПЛОЯ BACKEND'А НА RAILWAY ЗАМЕНИТЕ ЗНАЧЕНИЕ НИЖЕ !!!
+// Взять адрес: Railway → ваш сервис → Settings → Networking → Public Domain.
+const API_BASE_URL = 'https://track-production-a5e3.up.railway.app';
+// Если на backend'е задана переменная окружения API_KEY — укажите то же
+// значение здесь. Если API_KEY на сервере не задан, оставьте пустую строку.
+const API_KEY = '';
+
+function authHeaders(){
+  return API_KEY ? {'x-api-key': API_KEY} : {};
+}
+
+async function apiRequest(path, options){
+  options = options || {};
+  const headers = Object.assign({}, authHeaders(), options.headers || {});
+  let res;
+  try{
+    res = await fetch(API_BASE_URL + path, Object.assign({}, options, {headers}));
+  }catch(e){
+    throw new Error('Нет связи с сервером (' + e.message + ')');
+  }
+  let data = null;
+  try{ data = await res.json(); }catch(e){ /* пустой ответ, например 404 без тела */ }
+  if(res.status === 404) return {ok:false, notFound:true};
+  if(!res.ok || (data && data.ok === false)){
+    throw new Error((data && data.error) || ('Сервер ответил ' + res.status));
+  }
+  return data || {ok:true};
 }
 
 const METRICS = [
@@ -371,15 +376,10 @@ const METRICS = [
   {key:'duplicates', label:'Дубли', accent:'red'},
   {key:'notSent', label:'Не отправлено', accent:'red'},
 ];
-// Жёстко привязанный адрес Google Apps Script Web App —
-// страница всегда пишет и читает данные из одной этой таблицы.
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxxwBI09CnBrwb0JuB7A8-gtW_91h7JwKO19ROZygTxzH7rm_snpAJmL0CSK0LPB5ET/exec';
 
-const STATUS_LIST_KEY = 'statuses-list';
 const DEFAULT_STATUSES = ['CallBack','Hung Up','Depositor','N/A','No Interest','Wrong info','Wrong Number','Wrong Country','Trash','Other'];
 
 let statusList = [];
-let cfgUrl = WEBAPP_URL;
 
 function todayStr(){
   const d = new Date();
@@ -429,18 +429,21 @@ function collectStatusValuesFromForm(){
 
 async function loadStatuses(){
   try{
-    const r = await window.storage.get(STATUS_LIST_KEY, false);
-    statusList = r ? JSON.parse(r.value) : [];
-  }catch(e){ statusList = []; }
-  if(!statusList.length){
+    const data = await apiRequest('/api/statuses');
+    statusList = Array.isArray(data.statusList) && data.statusList.length ? data.statusList : [...DEFAULT_STATUSES];
+  }catch(e){
     statusList = [...DEFAULT_STATUSES];
-    await saveStatusList();
+    console.error('Не удалось загрузить статусы:', e.message);
   }
   renderStatusRows();
 }
 
 async function saveStatusList(){
-  await window.storage.set(STATUS_LIST_KEY, JSON.stringify(statusList), false);
+  await apiRequest('/api/statuses', {
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({statusList})
+  });
 }
 
 async function addStatus(){
@@ -449,74 +452,85 @@ async function addStatus(){
   if(!name) return;
   if(statusList.includes(name)){ input.value=''; return; }
   const vals = collectStatusValuesFromForm();
+  const prev = statusList.slice();
   statusList.push(name);
-  await saveStatusList();
-  renderStatusRows(vals);
-  input.value='';
+  try{
+    await saveStatusList();
+    renderStatusRows(vals);
+    input.value='';
+  }catch(e){
+    statusList = prev;
+    alert('Не удалось сохранить статус: ' + e.message);
+  }
 }
 
 async function removeStatus(name){
   const vals = collectStatusValuesFromForm();
   delete vals[name];
+  const prev = statusList.slice();
   statusList = statusList.filter(s=>s!==name);
-  await saveStatusList();
-  renderStatusRows(vals);
+  try{
+    await saveStatusList();
+    renderStatusRows(vals);
+  }catch(e){
+    statusList = prev;
+    alert('Не удалось удалить статус: ' + e.message);
+  }
 }
 window.removeStatus = removeStatus;
 
 function loadConfig(){
-  cfgUrl = WEBAPP_URL;
-  document.getElementById('webAppUrl').value = cfgUrl;
-  updateConnPill();
+  document.getElementById('webAppUrl').value = API_BASE_URL;
 }
 
-function updateConnPill(){
+function updateConnPill(ok){
   const dot = document.getElementById('connDot');
   const txt = document.getElementById('connText');
-  dot.classList.add('ok');
-  txt.textContent = 'Таблица подключена';
+  if(ok){
+    dot.classList.add('ok');
+    txt.textContent = 'База данных подключена';
+  } else {
+    dot.classList.remove('ok');
+    txt.textContent = 'Нет соединения с базой данных';
+  }
 }
 
 async function testConfig(){
   const help = document.getElementById('cfgHelp');
-  if(!cfgUrl){ help.textContent='Сначала вставьте и сохраните URL.'; return; }
   help.textContent = 'Проверка...';
   try{
-    const res = await fetch(cfgUrl);
-    const data = await res.json();
-    help.textContent = 'Соединение работает. Строк в таблице: ' + (data.rows ? data.rows.length : 0);
+    const data = await apiRequest('/api/health');
+    help.textContent = data.db === 'connected' ? 'Соединение работает.' : 'Сервер ответил, но база недоступна.';
+    updateConnPill(data.db === 'connected');
   }catch(e){
     help.textContent = 'Не удалось подключиться: ' + e.message;
+    updateConnPill(false);
   }
 }
 
-// ---- entries (локальная "база данных") ----
-function entryKey(date){ return 'entry:'+date; }
+// ---- entries (хранятся в общей базе на сервере, не в браузере) ----
 
 async function getEntry(date){
-  try{
-    const r = await window.storage.get(entryKey(date), false);
-    return r ? JSON.parse(r.value) : null;
-  }catch(e){ return null; }
+  const data = await apiRequest('/api/entries/' + encodeURIComponent(date));
+  if(data.notFound) return null;
+  return data.entry ? {metrics: data.entry.metrics || {}, statuses: data.entry.statuses || {}} : null;
 }
 
 async function setEntry(date, entry){
-  await window.storage.set(entryKey(date), JSON.stringify(entry), false);
+  await apiRequest('/api/entries/' + encodeURIComponent(date), {
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(entry)
+  });
+}
+
+async function deleteEntry(date){
+  await apiRequest('/api/entries/' + encodeURIComponent(date), {method:'DELETE'});
 }
 
 async function getAllEntries(){
-  const list = await window.storage.list('entry:', false);
-  if(!list || !list.keys) return [];
-  const out = [];
-  for(const k of list.keys){
-    try{
-      const r = await window.storage.get(k, false);
-      if(r){
-        const date = k.replace('entry:','');
-        out.push({date, ...JSON.parse(r.value)});
-      }
-    }catch(e){}
-  }
+  const data = await apiRequest('/api/entries');
+  const out = (data.entries || []).map(e => ({date: e.date, metrics: e.metrics || {}, statuses: e.statuses || {}}));
   out.sort((a,b)=> a.date < b.date ? 1 : -1);
   return out;
 }
@@ -534,15 +548,25 @@ function emptyStatusesObject(){
 }
 
 async function loadEntryIntoForm(date){
-  const existing = await getEntry(date);
+  const msg = document.getElementById('saveMsg');
+  const deleteBtn = document.getElementById('deleteBtn');
+  let existing = null;
+  try{
+    existing = await getEntry(date);
+  }catch(e){
+    msg.className = 'err';
+    msg.textContent = 'Не удалось загрузить запись: ' + e.message;
+    deleteBtn.style.display = 'none';
+    return;
+  }
   METRICS.forEach(m=>{
     const el = document.getElementById('m_'+m.key);
     el.value = (existing && existing.metrics && existing.metrics[m.key]) ? existing.metrics[m.key] : '';
   });
   renderStatusRows(existing ? existing.statuses : {});
-  const msg = document.getElementById('saveMsg');
   msg.className = '';
-  msg.textContent = existing ? 'Загружена существующая запись за этот день — можно править.' : 'За этот день данных ещё нет.';
+  msg.textContent = existing ? 'Загружена существующая запись за этот день — можно править или удалить.' : 'За этот день данных ещё нет.';
+  deleteBtn.style.display = existing ? 'inline-block' : 'none';
 }
 
 async function saveEntry(){
@@ -560,32 +584,55 @@ async function saveEntry(){
     statuses[name] = Number(row.querySelector('.statusCount').value) || 0;
   });
 
-  const record = {metrics, statuses};
-  await setEntry(date, record);
+  msg.textContent = 'Сохраняю...';
+  msg.className = '';
 
-  msg.textContent = 'Сохранено локально' + (cfgUrl ? ', отправляю в таблицу...' : '.');
-  msg.className='ok';
-
-  if(cfgUrl){
-    try{
-      await fetch(cfgUrl, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({date, metrics, statuses})
-      });
-      msg.textContent = 'Сохранено и записано в Google Таблицу ✓ (' + fmtDate(date) + ')';
-    }catch(e){
-      msg.textContent = 'Сохранено локально. В таблицу не отправилось (' + e.message + ') — нажмите «обновить» позже.';
-      msg.className = 'err';
-    }
+  try{
+    await setEntry(date, {metrics, statuses});
+    msg.textContent = 'Сохранено в базе данных ✓ (' + fmtDate(date) + ')';
+    msg.className = 'ok';
+    document.getElementById('deleteBtn').style.display = 'inline-block';
+  }catch(e){
+    msg.textContent = 'Не удалось сохранить: ' + e.message;
+    msg.className = 'err';
+    return;
   }
 
   await renderAll();
 }
 
+async function deleteCurrentEntry(){
+  const date = document.getElementById('dateInput').value || todayStr();
+  await confirmAndDeleteEntry(date);
+}
+
+async function confirmAndDeleteEntry(date){
+  const sure = confirm('Удалить запись за ' + fmtDate(date) + '? Действие необратимо.');
+  if(!sure) return;
+  const msg = document.getElementById('saveMsg');
+  try{
+    await deleteEntry(date);
+    if(document.getElementById('dateInput').value === date){
+      await loadEntryIntoForm(date);
+    }
+    await renderAll();
+    msg.textContent = 'Запись за ' + fmtDate(date) + ' удалена.';
+    msg.className = 'ok';
+  }catch(e){
+    alert('Не удалось удалить запись: ' + e.message);
+  }
+}
+
 // ---- rendering ----
 async function renderAll(){
-  const entries = await getAllEntries();
+  let entries = [];
+  try{
+    entries = await getAllEntries();
+    updateConnPill(true);
+  }catch(e){
+    updateConnPill(false);
+    console.error('Не удалось загрузить записи:', e.message);
+  }
   renderTotalsAndFunnel(entries);
   renderStatusTotals(entries);
   renderTable(entries);
@@ -678,66 +725,42 @@ function renderTable(entries){
   tbody.innerHTML = entries.map(e=>{
     const statusTags = Object.entries(e.statuses||{}).filter(([,v])=>v>0)
       .map(([k,v])=>`<span class="tag">${k}: ${v}</span>`).join('');
-    return `<tr class="editable-row" data-date="${e.date}">` +
+    return `<tr data-date="${e.date}">` +
       '<td>'+fmtDate(e.date)+'</td>' +
       METRICS.map(m=>`<td>${(e.metrics[m.key]||0).toLocaleString('ru-RU')}</td>`).join('') +
       `<td><div class="tags">${statusTags || '—'}</div></td>` +
-      `<td><span class="tag" style="color:var(--amber);border-color:var(--amber);white-space:nowrap;">✎ править</span></td></tr>`;
+      `<td><div style="display:flex;gap:6px;">` +
+      `<span class="tag edit-tag" style="color:var(--amber);border-color:var(--amber);white-space:nowrap;cursor:pointer;">✎ править</span>` +
+      `<span class="tag delete-tag" style="color:var(--red);border-color:var(--red);white-space:nowrap;cursor:pointer;">✕ удалить</span>` +
+      `</div></td></tr>`;
   }).join('');
 
-  tbody.querySelectorAll('tr.editable-row').forEach(row=>{
-    row.addEventListener('click', async ()=>{
-      const date = row.getAttribute('data-date');
+  tbody.querySelectorAll('tr').forEach(row=>{
+    const date = row.getAttribute('data-date');
+    row.querySelector('.edit-tag').addEventListener('click', async ()=>{
       document.getElementById('dateInput').value = date;
       updateDateEcho();
       await loadEntryIntoForm(date);
       document.querySelectorAll('.panel')[1].scrollIntoView({behavior:'smooth', block:'start'});
     });
+    row.querySelector('.delete-tag').addEventListener('click', async ()=>{
+      await confirmAndDeleteEntry(date);
+    });
   });
 }
 
-async function refreshFromSheet(){
+async function refreshData(){
   const btn = document.getElementById('refreshBtn');
-  if(!cfgUrl){ alert('Сначала подключите таблицу вверху страницы.'); return; }
   btn.textContent = 'Обновляю...';
   try{
-    const res = await fetch(cfgUrl);
-    const data = await res.json();
-    if(data.headers && data.rows){
-      const headers = data.headers;
-      const dateIdx = 0;
-      const metricIdx = {};
-      METRICS.forEach((m,i)=>{ metricIdx[m.key] = i+1; });
-      const knownCols = new Set(['Дата','Открыто','Кликнуло','Трекер→CRM','Зашло в CRM','Отправлено','Дубли','Не отправлено']);
-      const statusCols = headers.map((h,i)=>({h,i})).filter(x=>!knownCols.has(x.h) && x.i>0);
-
-      for(const row of data.rows){
-        const date = row[dateIdx];
-        if(!date) continue;
-        const iso = normalizeDate(date);
-        const metrics = {};
-        METRICS.forEach(m=>{ metrics[m.key] = Number(row[metricIdx[m.key]])||0; });
-        const statuses = {};
-        statusCols.forEach(sc=>{ const v = Number(row[sc.i])||0; if(v) statuses[sc.h]=v; });
-        await setEntry(iso, {metrics, statuses});
-        statusCols.forEach(sc=>{ if(!statusList.includes(sc.h)) statusList.push(sc.h); });
-      }
-      await saveStatusList();
-    }
+    await loadStatuses();
     await renderAll();
     const d = document.getElementById('dateInput').value || todayStr();
     await loadEntryIntoForm(d);
-    btn.textContent = '↻ обновить из таблицы';
   }catch(e){
-    alert('Не удалось получить данные: ' + e.message);
-    btn.textContent = '↻ обновить из таблицы';
+    alert('Не удалось обновить данные: ' + e.message);
   }
-}
-
-function normalizeDate(v){
-  if(v instanceof Date) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
-  if(typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0,10);
-  return v;
+  btn.textContent = '↻ обновить';
 }
 
 function updateDateEcho(){
@@ -745,18 +768,10 @@ function updateDateEcho(){
   document.getElementById('dateEcho').textContent = d ? fmtDate(d) : '';
 }
 
-async function resetAllData(){
-  const sure = confirm('Стереть все локально сохранённые данные (дни и статусы) на этом устройстве? Действие необратимо. Google Таблицу это не затронет.');
+function logout(){
+  const sure = confirm('Выйти из аккаунта? Данные в базе останутся без изменений — при следующем входе снова потребуется логин и пароль.');
   if(!sure) return;
-  try{
-    const list = await window.storage.list('entry:', false);
-    if(list && list.keys){
-      for(const k of list.keys){
-        await window.storage.delete(k, false);
-      }
-    }
-  }catch(e){}
-  try{ await window.storage.delete(STATUS_LIST_KEY, false); }catch(e){}
+  try{ sessionStorage.removeItem(AUTH_SESSION_KEY); }catch(e){}
   location.reload();
 }
 
@@ -808,10 +823,11 @@ if(alreadyAuthed){ showApp(); } else { document.getElementById('loginUser').focu
   });
 
   document.getElementById('testCfgBtn').addEventListener('click', testConfig);
-  document.getElementById('resetBtn').addEventListener('click', resetAllData);
+  document.getElementById('resetBtn').addEventListener('click', logout);
   document.getElementById('addStatusBtn').addEventListener('click', addStatus);
   document.getElementById('saveBtn').addEventListener('click', saveEntry);
-  document.getElementById('refreshBtn').addEventListener('click', refreshFromSheet);
+  document.getElementById('deleteBtn').addEventListener('click', deleteCurrentEntry);
+  document.getElementById('refreshBtn').addEventListener('click', refreshData);
 
   loadConfig();
   await loadStatuses();
