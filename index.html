@@ -71,6 +71,7 @@
   }
   input[type=text]:focus,input[type=date]:focus,input[type=number]:focus{border-color:var(--amber);}
   input[type=text]{flex:1;min-width:220px;}
+  input[type=text][readonly]{color:var(--text-dim);cursor:default;}
   .btn{
     background:var(--amber);color:#12100C;border:none;border-radius:8px;
     padding:9px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
@@ -144,10 +145,114 @@
   .empty{color:var(--text-dim);font-size:13px;padding:20px 0;text-align:center;}
   ::-webkit-scrollbar{height:6px;width:6px;}
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+
+  /* ---- login screen ---- */
+  #loginScreen{
+    position:fixed;inset:0;z-index:100;
+    background:
+      radial-gradient(circle at 18% 15%, rgba(91,147,255,.14), transparent 45%),
+      radial-gradient(circle at 82% 85%, rgba(52,209,165,.12), transparent 45%),
+      var(--bg);
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;
+  }
+  .login-card{
+    width:100%;max-width:380px;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:36px 32px 30px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+    position:relative;overflow:hidden;
+  }
+  .login-card::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--amber),var(--blue),var(--teal));
+  }
+  .login-logo{
+    display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:26px;
+  }
+  .login-logo svg{width:68px;height:57px;}
+  .login-brand{
+    font-family:'Space Grotesk',sans-serif;font-size:23px;font-weight:700;
+    letter-spacing:-0.3px;color:var(--text);display:flex;align-items:baseline;gap:2px;
+  }
+  .login-brand .accent{color:var(--amber);}
+  .login-sub{
+    font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim);
+    letter-spacing:2px;text-transform:uppercase;margin-top:2px;
+  }
+  .login-field{margin-bottom:14px;}
+  .login-field label{
+    display:block;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);
+    margin-bottom:6px;letter-spacing:.5px;
+  }
+  .login-field input{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    border-radius:9px;padding:11px 13px;font-family:'JetBrains Mono',monospace;font-size:14px;
+    outline:none;transition:border-color .15s;
+  }
+  .login-field input:focus{border-color:var(--amber);}
+  .login-btn{
+    width:100%;background:var(--amber);color:#12100C;border:none;border-radius:9px;
+    padding:12px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;
+    cursor:pointer;margin-top:6px;transition:filter .15s;
+  }
+  .login-btn:hover{filter:brightness(1.08);}
+  #loginError{
+    font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--red);
+    text-align:center;min-height:16px;margin-top:12px;
+  }
+  .login-foot{
+    text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);
+    margin-top:22px;letter-spacing:.5px;opacity:.6;
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 120 100" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22,54
+                 C22,28 46,14 70,16
+                 C90,18 100,32 96,44
+                 C92,34 80,26 66,26
+                 C48,26 36,40 38,54
+                 C39,63 47,69 55,66
+                 C61,64 62,57 57,54
+                 C60,58 58,63 52,64
+                 C42,66 33,58 33,48
+                 C33,30 50,16 72,18
+                 C50,10 26,24 22,48
+                 C21,50 22,52 22,54 Z"
+              fill="#8b9bb0"/>
+        <path d="M26,63 C46,77 66,77 84,62 C91,56 98,56 106,62"
+              fill="none" stroke="#8b9bb0" stroke-width="5.5" stroke-linecap="round"/>
+        <path d="M34,74 C52,86 70,86 86,73 C93,67 99,67 105,72"
+              fill="none" stroke="#8b9bb0" stroke-width="5.5" stroke-linecap="round"/>
+        <path d="M44,83 C58,92 72,92 84,83"
+              fill="none" stroke="#8b9bb0" stroke-width="5.5" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <div class="login-brand">Storm<span class="accent">Mail</span></div>
+        <div class="login-sub" style="text-align:center;">Панель авторизации</div>
+      </div>
+    </div>
+    <div class="login-field">
+      <label>Логин</label>
+      <input type="text" id="loginUser" autocomplete="username" placeholder="Введите логин">
+    </div>
+    <div class="login-field">
+      <label>Пароль</label>
+      <input type="password" id="loginPass" autocomplete="current-password" placeholder="Введите пароль">
+    </div>
+    <button class="login-btn" id="loginBtn">Войти</button>
+    <div id="loginError"></div>
+    <div class="login-foot">STORM MAIL · СЛУЖЕБНЫЙ ДОСТУП</div>
+  </div>
+</div>
+
+<div class="wrap" id="appContent" style="display:none;">
 
   <div class="top">
     <div>
@@ -160,17 +265,16 @@
   <details class="panel" id="cfgPanel">
     <summary>Подключение к Google Таблице</summary>
     <div class="hint">
-      Вставьте сюда URL Web App вашего Apps Script (см. инструкцию под полем ввода). Данные всегда сохраняются локально в браузере, даже без подключения — таблица нужна только для общего хранения и бэкапа. Выбрав дату, на которую уже есть запись, вы увидите и сможете поправить её — сохранение полностью перезапишет значения за этот день (и в таблице, и в тотале).
+      Эта страница жёстко привязана к одной Google Таблице — адрес зашит в код и не меняется отсюда. Все, кто заходит на эту страницу, пишут данные в одну и ту же таблицу. Выбрав дату, на которую уже есть запись, вы увидите и сможете поправить её — сохранение полностью перезапишет значения за этот день (и в таблице, и в тотале).
     </div>
     <div class="cfg-row">
-      <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/.../exec">
-      <button class="btn" id="saveCfgBtn">Сохранить</button>
-      <button class="btn ghost" id="testCfgBtn">Проверить</button>
+      <input type="text" id="webAppUrl" readonly>
+      <button class="btn ghost" id="testCfgBtn">Проверить соединение</button>
     </div>
     <div class="hint" id="cfgHelp"></div>
     <div class="cfg-row" style="margin-top:18px;border-top:1px dashed var(--line);padding-top:16px;">
       <button class="btn danger" id="resetBtn" type="button">Стереть все локальные данные</button>
-      <span class="hint" style="margin:0;">Удалит локально сохранённые дни, статусы и URL таблицы на этом устройстве (localStorage браузера). В самой Google Таблице данные не тронет.</span>
+      <span class="hint" style="margin:0;">Удалит локально сохранённые дни и статусы на этом устройстве (localStorage браузера). В самой Google Таблице данные не тронет.</span>
     </div>
   </details>
 
@@ -267,12 +371,15 @@ const METRICS = [
   {key:'duplicates', label:'Дубли', accent:'red'},
   {key:'notSent', label:'Не отправлено', accent:'red'},
 ];
-const CFG_URL_KEY = 'webapp-url';
+// Жёстко привязанный адрес Google Apps Script Web App —
+// страница всегда пишет и читает данные из одной этой таблицы.
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxxwBI09CnBrwb0JuB7A8-gtW_91h7JwKO19ROZygTxzH7rm_snpAJmL0CSK0LPB5ET/exec';
+
 const STATUS_LIST_KEY = 'statuses-list';
 const DEFAULT_STATUSES = ['CallBack','Hung Up','Depositor','N/A','No Interest','Wrong info','Wrong Number','Wrong Country','Trash','Other'];
 
 let statusList = [];
-let cfgUrl = '';
+let cfgUrl = WEBAPP_URL;
 
 function todayStr(){
   const d = new Date();
@@ -357,11 +464,8 @@ async function removeStatus(name){
 }
 window.removeStatus = removeStatus;
 
-async function loadConfig(){
-  try{
-    const r = await window.storage.get(CFG_URL_KEY, false);
-    cfgUrl = r ? r.value : '';
-  }catch(e){ cfgUrl = ''; }
+function loadConfig(){
+  cfgUrl = WEBAPP_URL;
   document.getElementById('webAppUrl').value = cfgUrl;
   updateConnPill();
 }
@@ -369,22 +473,8 @@ async function loadConfig(){
 function updateConnPill(){
   const dot = document.getElementById('connDot');
   const txt = document.getElementById('connText');
-  if(cfgUrl){
-    dot.classList.add('ok');
-    txt.textContent = 'Таблица подключена';
-  } else {
-    dot.classList.remove('ok');
-    txt.textContent = 'Таблица не подключена (данные копятся локально)';
-  }
-}
-
-async function saveConfig(){
-  cfgUrl = document.getElementById('webAppUrl').value.trim();
-  await window.storage.set(CFG_URL_KEY, cfgUrl, false);
-  updateConnPill();
-  const help = document.getElementById('cfgHelp');
-  help.textContent = 'Сохранено.';
-  setTimeout(()=>help.textContent='',1500);
+  dot.classList.add('ok');
+  txt.textContent = 'Таблица подключена';
 }
 
 async function testConfig(){
@@ -656,7 +746,7 @@ function updateDateEcho(){
 }
 
 async function resetAllData(){
-  const sure = confirm('Стереть все локально сохранённые данные (дни, статусы, URL таблицы) на этом устройстве? Действие необратимо. Google Таблицу это не затронет.');
+  const sure = confirm('Стереть все локально сохранённые данные (дни и статусы) на этом устройстве? Действие необратимо. Google Таблицу это не затронет.');
   if(!sure) return;
   try{
     const list = await window.storage.list('entry:', false);
@@ -667,9 +757,44 @@ async function resetAllData(){
     }
   }catch(e){}
   try{ await window.storage.delete(STATUS_LIST_KEY, false); }catch(e){}
-  try{ await window.storage.delete(CFG_URL_KEY, false); }catch(e){}
   location.reload();
 }
+
+// ---- Storm Mail: авторизация ----
+// Это простая имитация страницы входа на стороне браузера — она не
+// защищает данные (сама таблица управляется правами доступа Apps Script/
+// Google), а лишь закрывает доступ к интерфейсу от случайных посетителей.
+const AUTH_LOGIN = 'storm';
+const AUTH_PASS = 'admin';
+const AUTH_SESSION_KEY = 'storm-mail-auth';
+
+function showApp(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appContent').style.display = 'block';
+}
+
+function tryLogin(){
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginError');
+  if(user === AUTH_LOGIN && pass === AUTH_PASS){
+    err.textContent = '';
+    try{ sessionStorage.setItem(AUTH_SESSION_KEY, '1'); }catch(e){}
+    showApp();
+  } else {
+    err.textContent = 'Неверный логин или пароль';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', tryLogin);
+document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginPass').focus(); });
+document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
+
+let alreadyAuthed = false;
+try{ alreadyAuthed = sessionStorage.getItem(AUTH_SESSION_KEY) === '1'; }catch(e){}
+if(alreadyAuthed){ showApp(); } else { document.getElementById('loginUser').focus(); }
 
 // ---- init ----
 (async function init(){
@@ -682,14 +807,13 @@ async function resetAllData(){
     await loadEntryIntoForm(d);
   });
 
-  document.getElementById('saveCfgBtn').addEventListener('click', saveConfig);
   document.getElementById('testCfgBtn').addEventListener('click', testConfig);
   document.getElementById('resetBtn').addEventListener('click', resetAllData);
   document.getElementById('addStatusBtn').addEventListener('click', addStatus);
   document.getElementById('saveBtn').addEventListener('click', saveEntry);
   document.getElementById('refreshBtn').addEventListener('click', refreshFromSheet);
 
-  await loadConfig();
+  loadConfig();
   await loadStatuses();
   await renderAll();
   await loadEntryIntoForm(todayStr());
