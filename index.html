@@ -64,14 +64,13 @@
   details.panel summary::after{content:'▸';float:right;color:var(--text-dim);transition:transform .15s;}
   details[open].panel summary::after{transform:rotate(90deg);}
   .cfg-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
-  input[type=text],input[type=date],input[type=number]{
+  input[type=text],input[type=date],input[type=number],input[type=password]{
     background:var(--panel-2);border:1px solid var(--line);color:var(--text);
     border-radius:8px;padding:9px 11px;font-family:'JetBrains Mono',monospace;font-size:13px;
     outline:none;
   }
   input[type=text]:focus,input[type=date]:focus,input[type=number]:focus{border-color:var(--amber);}
   input[type=text]{flex:1;min-width:220px;}
-  input[type=text][readonly]{color:var(--text-dim);cursor:default;}
   .btn{
     background:var(--amber);color:#12100C;border:none;border-radius:8px;
     padding:9px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
@@ -98,7 +97,7 @@
   .status-row .sname{flex:1;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;}
   .status-row input[type=number]{width:100px;}
   .add-status{display:flex;gap:8px;margin-top:10px;}
-  .save-row{display:flex;align-items:center;gap:14px;margin-top:20px;}
+  .save-row{display:flex;align-items:center;gap:14px;margin-top:20px;flex-wrap:wrap;}
   #saveMsg{font-size:12px;font-family:'JetBrains Mono',monospace;}
   #saveMsg.ok{color:var(--teal);}
   #saveMsg.err{color:var(--red);}
@@ -123,12 +122,17 @@
   .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
   .card{
     background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
-    padding:14px 14px 12px;
+    padding:14px 14px 12px;position:relative;
   }
   .card .v{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--text);}
   .card .k{font-size:11px;color:var(--text-dim);margin-top:4px;}
   .card.teal .v{color:var(--teal);}
   .card.red .v{color:var(--red);}
+  .card .del{
+    position:absolute;top:8px;right:8px;font-family:'JetBrains Mono',monospace;font-size:11px;
+    color:var(--text-dim);cursor:pointer;border:1px solid var(--line);border-radius:5px;padding:1px 5px;
+  }
+  .card .del:hover{color:var(--red);border-color:var(--red);}
   /* table */
   table{width:100%;border-collapse:collapse;font-size:12.5px;}
   th{
@@ -145,114 +149,11 @@
   .empty{color:var(--text-dim);font-size:13px;padding:20px 0;text-align:center;}
   ::-webkit-scrollbar{height:6px;width:6px;}
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
-
-  /* ---- login screen ---- */
-  #loginScreen{
-    position:fixed;inset:0;z-index:100;
-    background:
-      radial-gradient(circle at 18% 15%, rgba(91,147,255,.14), transparent 45%),
-      radial-gradient(circle at 82% 85%, rgba(52,209,165,.12), transparent 45%),
-      var(--bg);
-    display:flex;align-items:center;justify-content:center;
-    padding:20px;
-  }
-  .login-card{
-    width:100%;max-width:380px;
-    background:var(--panel);border:1px solid var(--line);border-radius:16px;
-    padding:36px 32px 30px;
-    box-shadow:0 20px 60px rgba(0,0,0,.45);
-    position:relative;overflow:hidden;
-  }
-  .login-card::before{
-    content:'';position:absolute;top:0;left:0;right:0;height:3px;
-    background:linear-gradient(90deg,var(--amber),var(--blue),var(--teal));
-  }
-  .login-logo{
-    display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:26px;
-  }
-  .login-logo svg{width:68px;height:57px;}
-  .login-brand{
-    font-family:'Space Grotesk',sans-serif;font-size:23px;font-weight:700;
-    letter-spacing:-0.3px;color:var(--text);display:flex;align-items:baseline;gap:2px;
-  }
-  .login-brand .accent{color:var(--amber);}
-  .login-sub{
-    font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-dim);
-    letter-spacing:2px;text-transform:uppercase;margin-top:2px;
-  }
-  .login-field{margin-bottom:14px;}
-  .login-field label{
-    display:block;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);
-    margin-bottom:6px;letter-spacing:.5px;
-  }
-  .login-field input{
-    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
-    border-radius:9px;padding:11px 13px;font-family:'JetBrains Mono',monospace;font-size:14px;
-    outline:none;transition:border-color .15s;
-  }
-  .login-field input:focus{border-color:var(--amber);}
-  .login-btn{
-    width:100%;background:var(--amber);color:#12100C;border:none;border-radius:9px;
-    padding:12px 16px;font-family:'Inter',sans-serif;font-weight:600;font-size:14px;
-    cursor:pointer;margin-top:6px;transition:filter .15s;
-  }
-  .login-btn:hover{filter:brightness(1.08);}
-  #loginError{
-    font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--red);
-    text-align:center;min-height:16px;margin-top:12px;
-  }
-  .login-foot{
-    text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);
-    margin-top:22px;letter-spacing:.5px;opacity:.6;
-  }
 </style>
 </head>
 <body>
 
-<div id="loginScreen">
-  <div class="login-card">
-    <div class="login-logo">
-      <svg viewBox="0 0 120 100" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22,54
-                 C22,28 46,14 70,16
-                 C90,18 100,32 96,44
-                 C92,34 80,26 66,26
-                 C48,26 36,40 38,54
-                 C39,63 47,69 55,66
-                 C61,64 62,57 57,54
-                 C60,58 58,63 52,64
-                 C42,66 33,58 33,48
-                 C33,30 50,16 72,18
-                 C50,10 26,24 22,48
-                 C21,50 22,52 22,54 Z"
-              fill="#8b9bb0"/>
-        <path d="M26,63 C46,77 66,77 84,62 C91,56 98,56 106,62"
-              fill="none" stroke="#8b9bb0" stroke-width="5.5" stroke-linecap="round"/>
-        <path d="M34,74 C52,86 70,86 86,73 C93,67 99,67 105,72"
-              fill="none" stroke="#8b9bb0" stroke-width="5.5" stroke-linecap="round"/>
-        <path d="M44,83 C58,92 72,92 84,83"
-              fill="none" stroke="#8b9bb0" stroke-width="5.5" stroke-linecap="round"/>
-      </svg>
-      <div>
-        <div class="login-brand">Storm<span class="accent">Mail</span></div>
-        <div class="login-sub" style="text-align:center;">Панель авторизации</div>
-      </div>
-    </div>
-    <div class="login-field">
-      <label>Логин</label>
-      <input type="text" id="loginUser" autocomplete="username" placeholder="Введите логин">
-    </div>
-    <div class="login-field">
-      <label>Пароль</label>
-      <input type="password" id="loginPass" autocomplete="current-password" placeholder="Введите пароль">
-    </div>
-    <button class="login-btn" id="loginBtn">Войти</button>
-    <div id="loginError"></div>
-    <div class="login-foot">STORM MAIL · СЛУЖЕБНЫЙ ДОСТУП</div>
-  </div>
-</div>
-
-<div class="wrap" id="appContent" style="display:none;">
+<div class="wrap" id="appContent">
 
   <div class="top">
     <div>
@@ -262,20 +163,21 @@
     <div class="status-pill" id="connPill"><span class="dot" id="connDot"></span><span id="connText">Проверка соединения...</span></div>
   </div>
 
-  <details class="panel" id="cfgPanel">
-    <summary>Подключение к базе данных</summary>
+  <details class="panel" id="cfgPanel" open>
+    <summary>Подключение к Google Таблице</summary>
     <div class="hint">
-      Страница жёстко привязана к одному backend-серверу на Railway — адрес зашит в код. Все, кто открывает эту страницу (с любого компьютера), читают и пишут в одну и ту же базу данных, поэтому данные везде одинаковые. Выбрав дату, на которую уже есть запись, вы увидите и сможете поправить или удалить её — сохранение полностью перезапишет значения за этот день.
+      Вставьте сюда URL веб-приложения, который Google Apps Script выдал после развёртывания
+      (заканчивается на <b>/exec</b>). Он сохранится в этом браузере, чтобы не вводить его каждый раз.
+      Все, кто откроет эту страницу и впишут тот же URL, будут читать и писать в одну и ту же Google Таблицу.
+      Выбрав дату, на которую уже есть запись, вы увидите и сможете поправить или удалить её —
+      сохранение полностью перезапишет значения за этот день.
     </div>
     <div class="cfg-row">
-      <input type="text" id="webAppUrl" readonly>
+      <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/.../exec">
+      <button class="btn ghost" id="saveCfgBtn">Сохранить URL</button>
       <button class="btn ghost" id="testCfgBtn">Проверить соединение</button>
     </div>
     <div class="hint" id="cfgHelp"></div>
-    <div class="cfg-row" style="margin-top:18px;border-top:1px dashed var(--line);padding-top:16px;">
-      <button class="btn ghost" id="resetBtn" type="button">Выйти из аккаунта</button>
-      <span class="hint" style="margin:0;">Данные хранятся в базе на сервере, а не в этом браузере — выход из аккаунта их не затронет.</span>
-    </div>
   </details>
 
   <div class="panel">
@@ -317,6 +219,7 @@
   <div class="panel">
     <h2>Статусы — итого по всем дням</h2>
     <div class="cards" id="statusTotals"></div>
+    <div class="hint">Крестик на карточке статуса удаляет всю колонку статуса из Google Таблицы целиком (для всех дней).</div>
   </div>
 
   <div class="panel">
@@ -333,40 +236,13 @@
 </div>
 
 <script>
-// ===== Storm Mail: подключение к backend API (Railway + Postgres) =====
-// Единая база данных для всех устройств — данные больше не хранятся
-// в localStorage браузера, поэтому на разных компьютерах всегда
-// одна и та же картина.
-//
-// !!! ПОСЛЕ ДЕПЛОЯ BACKEND'А НА RAILWAY ЗАМЕНИТЕ ЗНАЧЕНИЕ НИЖЕ !!!
-// Взять адрес: Railway → ваш сервис → Settings → Networking → Public Domain.
-const API_BASE_URL = 'https://track-production-a525.up.railway.app';
-// Если на backend'е задана переменная окружения API_KEY — укажите то же
-// значение здесь. Если API_KEY на сервере не задан, оставьте пустую строку.
-const API_KEY = 'storm2026secret';
+// ===== Storm Mail: подключение напрямую к Google Таблице через Apps Script =====
+// URL веб-приложения хранится в localStorage этого браузера (не в коде),
+// поэтому его можно сменить в любой момент через панель "Подключение".
+const CONFIG_KEY = 'lead-tracker-gas-url';
+let WEB_APP_URL = localStorage.getItem(CONFIG_KEY) || '';
 
-function authHeaders(){
-  return API_KEY ? {'x-api-key': API_KEY} : {};
-}
-
-async function apiRequest(path, options){
-  options = options || {};
-  const headers = Object.assign({}, authHeaders(), options.headers || {});
-  let res;
-  try{
-    res = await fetch(API_BASE_URL + path, Object.assign({}, options, {headers}));
-  }catch(e){
-    throw new Error('Нет связи с сервером (' + e.message + ')');
-  }
-  let data = null;
-  try{ data = await res.json(); }catch(e){ /* пустой ответ, например 404 без тела */ }
-  if(res.status === 404) return {ok:false, notFound:true};
-  if(!res.ok || (data && data.ok === false)){
-    throw new Error((data && data.error) || ('Сервер ответил ' + res.status));
-  }
-  return data || {ok:true};
-}
-
+const METRIC_HEADERS = ['Дата','Открыто','Кликнуло','Трекер→CRM','Зашло в CRM','Отправлено','Дубли','Не отправлено'];
 const METRICS = [
   {key:'opened', label:'Открыто сообщение'},
   {key:'clicked', label:'Кликнуло'},
@@ -376,19 +252,70 @@ const METRICS = [
   {key:'duplicates', label:'Дубли', accent:'red'},
   {key:'notSent', label:'Не отправлено', accent:'red'},
 ];
+const METRIC_KEYS = METRICS.map(m=>m.key);
 
-const DEFAULT_STATUSES = ['CallBack','Hung Up','Depositor','N/A','No Interest','Wrong info','Wrong Number','Wrong Country','Trash','Other'];
-
-let statusList = [];
+let statusList = [];       // текущий список статусов (колонки после метрик)
+let cachedHeaders = [];    // последние полученные заголовки листа Data
+let cachedEntries = [];    // последние полученные записи (для чтения без лишних запросов)
 
 function todayStr(){
   const d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
-
 function fmtDate(iso){
   const [y,m,d]=iso.split('-');
   return d+'.'+m+'.'+y;
+}
+
+// ---- низкоуровневые запросы к Apps Script ----
+// Content-Type: text/plain специально, чтобы браузер не слал CORS preflight
+// (Apps Script веб-приложения не умеют отвечать на OPTIONS-запросы).
+async function gasGet(){
+  if(!WEB_APP_URL) throw new Error('Не задан URL веб-приложения Google Apps Script');
+  const res = await fetch(WEB_APP_URL, {method:'GET'});
+  if(!res.ok) throw new Error('Сервер ответил ' + res.status);
+  return res.json();
+}
+async function gasPost(payload){
+  if(!WEB_APP_URL) throw new Error('Не задан URL веб-приложения Google Apps Script');
+  const res = await fetch(WEB_APP_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok) throw new Error('Сервер ответил ' + res.status);
+  const data = await res.json();
+  if(data && data.ok === false) throw new Error(data.error || 'Неизвестная ошибка сервера');
+  return data;
+}
+
+function rowsToEntries(headers, rows){
+  const statusNames = headers.slice(METRIC_HEADERS.length);
+  const entries = rows.map(row=>{
+    const dateRaw = row[0];
+    const date = dateRaw instanceof Date
+      ? (dateRaw.getFullYear()+'-'+String(dateRaw.getMonth()+1).padStart(2,'0')+'-'+String(dateRaw.getDate()).padStart(2,'0'))
+      : String(dateRaw);
+    const metrics = {};
+    METRIC_KEYS.forEach((key,i)=>{ metrics[key] = Number(row[i+1]) || 0; });
+    const statuses = {};
+    statusNames.forEach((name,i)=>{
+      const v = Number(row[METRIC_HEADERS.length+i]) || 0;
+      if(v) statuses[name] = v;
+    });
+    return {date, metrics, statuses};
+  });
+  entries.sort((a,b)=> a.date < b.date ? 1 : -1);
+  return {entries, statusNames};
+}
+
+async function loadAll(){
+  const data = await gasGet();
+  cachedHeaders = data.headers && data.headers.length ? data.headers : METRIC_HEADERS.slice();
+  const {entries, statusNames} = rowsToEntries(cachedHeaders, data.rows || []);
+  cachedEntries = entries;
+  statusList = statusNames;
+  return entries;
 }
 
 function buildMetricsGrid(){
@@ -412,7 +339,6 @@ function renderStatusRows(values){
     <div class="status-row" data-name="${name}">
       <span class="sname">${name}</span>
       <input type="number" min="0" class="statusCount" placeholder="0" value="${values[name] ? values[name] : ''}">
-      <button class="btn danger small" onclick="removeStatus('${name.replace(/'/g,"\\'")}')">✕</button>
     </div>
   `).join('');
 }
@@ -427,60 +353,44 @@ function collectStatusValuesFromForm(){
   return vals;
 }
 
-async function loadStatuses(){
-  try{
-    const data = await apiRequest('/api/statuses');
-    statusList = Array.isArray(data.statusList) && data.statusList.length ? data.statusList : [...DEFAULT_STATUSES];
-  }catch(e){
-    statusList = [...DEFAULT_STATUSES];
-    console.error('Не удалось загрузить статусы:', e.message);
-  }
-  renderStatusRows();
-}
-
-async function saveStatusList(){
-  await apiRequest('/api/statuses', {
-    method:'PUT',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({statusList})
-  });
-}
-
 async function addStatus(){
   const input = document.getElementById('newStatusName');
   const name = input.value.trim();
   if(!name) return;
   if(statusList.includes(name)){ input.value=''; return; }
   const vals = collectStatusValuesFromForm();
-  const prev = statusList.slice();
-  statusList.push(name);
+  const btn = document.getElementById('addStatusBtn');
+  btn.disabled = true;
   try{
-    await saveStatusList();
+    await gasPost({action:'addStatus', name});
+    statusList.push(name);
     renderStatusRows(vals);
     input.value='';
   }catch(e){
-    statusList = prev;
-    alert('Не удалось сохранить статус: ' + e.message);
+    alert('Не удалось добавить статус: ' + e.message);
   }
+  btn.disabled = false;
 }
 
-async function removeStatus(name){
-  const vals = collectStatusValuesFromForm();
-  delete vals[name];
-  const prev = statusList.slice();
-  statusList = statusList.filter(s=>s!==name);
+async function removeStatusEverywhere(name){
+  const sure = confirm('Удалить статус «'+name+'» из Google Таблицы целиком (колонка удалится для всех дней)? Действие необратимо.');
+  if(!sure) return;
   try{
-    await saveStatusList();
+    await gasPost({action:'deleteStatus', name});
+    statusList = statusList.filter(s=>s!==name);
+    const vals = collectStatusValuesFromForm();
+    delete vals[name];
     renderStatusRows(vals);
+    await renderAll();
   }catch(e){
-    statusList = prev;
     alert('Не удалось удалить статус: ' + e.message);
   }
 }
-window.removeStatus = removeStatus;
+window.removeStatusEverywhere = removeStatusEverywhere;
 
-function loadConfig(){
-  document.getElementById('webAppUrl').value = API_BASE_URL;
+// ---- конфигурация подключения ----
+function loadConfigIntoForm(){
+  document.getElementById('webAppUrl').value = WEB_APP_URL;
 }
 
 function updateConnPill(ok){
@@ -488,77 +398,43 @@ function updateConnPill(ok){
   const txt = document.getElementById('connText');
   if(ok){
     dot.classList.add('ok');
-    txt.textContent = 'База данных подключена';
+    txt.textContent = 'Google Таблица подключена';
   } else {
     dot.classList.remove('ok');
-    txt.textContent = 'Нет соединения с базой данных';
+    txt.textContent = 'Нет соединения с Google Таблицей';
   }
+}
+
+function saveConfig(){
+  const url = document.getElementById('webAppUrl').value.trim();
+  WEB_APP_URL = url;
+  localStorage.setItem(CONFIG_KEY, url);
+  document.getElementById('cfgHelp').textContent = url ? 'URL сохранён в этом браузере.' : 'URL очищен.';
+  testConfig();
 }
 
 async function testConfig(){
   const help = document.getElementById('cfgHelp');
   help.textContent = 'Проверка...';
   try{
-    const data = await apiRequest('/api/health');
-    help.textContent = data.db === 'connected' ? 'Соединение работает.' : 'Сервер ответил, но база недоступна.';
-    updateConnPill(data.db === 'connected');
+    await gasGet();
+    help.textContent = 'Соединение работает.';
+    updateConnPill(true);
   }catch(e){
     help.textContent = 'Не удалось подключиться: ' + e.message;
     updateConnPill(false);
   }
 }
 
-// ---- entries (хранятся в общей базе на сервере, не в браузере) ----
-
-async function getEntry(date){
-  const data = await apiRequest('/api/entries/' + encodeURIComponent(date));
-  if(data.notFound) return null;
-  return data.entry ? {metrics: data.entry.metrics || {}, statuses: data.entry.statuses || {}} : null;
-}
-
-async function setEntry(date, entry){
-  await apiRequest('/api/entries/' + encodeURIComponent(date), {
-    method:'PUT',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(entry)
-  });
-}
-
-async function deleteEntry(date){
-  await apiRequest('/api/entries/' + encodeURIComponent(date), {method:'DELETE'});
-}
-
-async function getAllEntries(){
-  const data = await apiRequest('/api/entries');
-  const out = (data.entries || []).map(e => ({date: e.date, metrics: e.metrics || {}, statuses: e.statuses || {}}));
-  out.sort((a,b)=> a.date < b.date ? 1 : -1);
-  return out;
-}
-
-function emptyMetrics(){
-  const m = {};
-  METRICS.forEach(x=>m[x.key]=0);
-  return m;
-}
-
-function emptyStatusesObject(){
-  const o = {};
-  statusList.forEach(s=>o[s]=0);
-  return o;
+// ---- запись/чтение/удаление одного дня ----
+function getEntryFromCache(date){
+  return cachedEntries.find(e=>e.date===date) || null;
 }
 
 async function loadEntryIntoForm(date){
   const msg = document.getElementById('saveMsg');
   const deleteBtn = document.getElementById('deleteBtn');
-  let existing = null;
-  try{
-    existing = await getEntry(date);
-  }catch(e){
-    msg.className = 'err';
-    msg.textContent = 'Не удалось загрузить запись: ' + e.message;
-    deleteBtn.style.display = 'none';
-    return;
-  }
+  const existing = getEntryFromCache(date);
   METRICS.forEach(m=>{
     const el = document.getElementById('m_'+m.key);
     el.value = (existing && existing.metrics && existing.metrics[m.key]) ? existing.metrics[m.key] : '';
@@ -573,23 +449,19 @@ async function saveEntry(){
   const msg = document.getElementById('saveMsg');
   const date = document.getElementById('dateInput').value || todayStr();
 
-  const metrics = emptyMetrics();
+  const metrics = {};
   METRICS.forEach(m=>{
     metrics[m.key] = Number(document.getElementById('m_'+m.key).value) || 0;
   });
 
-  const statuses = emptyStatusesObject();
-  document.querySelectorAll('.status-row').forEach(row=>{
-    const name = row.getAttribute('data-name');
-    statuses[name] = Number(row.querySelector('.statusCount').value) || 0;
-  });
+  const statuses = collectStatusValuesFromForm();
 
-  msg.textContent = 'Сохраняю...';
+  msg.textContent = 'Сохраняю в Google Таблицу...';
   msg.className = '';
 
   try{
-    await setEntry(date, {metrics, statuses});
-    msg.textContent = 'Сохранено в базе данных ✓ (' + fmtDate(date) + ')';
+    await gasPost({action:'save', date, metrics, statuses});
+    msg.textContent = 'Сохранено в Google Таблице ✓ (' + fmtDate(date) + ')';
     msg.className = 'ok';
     document.getElementById('deleteBtn').style.display = 'inline-block';
   }catch(e){
@@ -607,16 +479,18 @@ async function deleteCurrentEntry(){
 }
 
 async function confirmAndDeleteEntry(date){
-  const sure = confirm('Удалить запись за ' + fmtDate(date) + '? Действие необратимо.');
+  const sure = confirm('Удалить запись за ' + fmtDate(date) + ' из Google Таблицы? Действие необратимо.');
   if(!sure) return;
   const msg = document.getElementById('saveMsg');
   try{
-    await deleteEntry(date);
+    await gasPost({action:'delete', date});
     if(document.getElementById('dateInput').value === date){
+      await renderAll();
       await loadEntryIntoForm(date);
+    } else {
+      await renderAll();
     }
-    await renderAll();
-    msg.textContent = 'Запись за ' + fmtDate(date) + ' удалена.';
+    msg.textContent = 'Запись за ' + fmtDate(date) + ' удалена из Google Таблицы.';
     msg.className = 'ok';
   }catch(e){
     alert('Не удалось удалить запись: ' + e.message);
@@ -627,11 +501,11 @@ async function confirmAndDeleteEntry(date){
 async function renderAll(){
   let entries = [];
   try{
-    entries = await getAllEntries();
+    entries = await loadAll();
     updateConnPill(true);
   }catch(e){
     updateConnPill(false);
-    console.error('Не удалось загрузить записи:', e.message);
+    console.error('Не удалось загрузить данные:', e.message);
   }
   renderTotalsAndFunnel(entries);
   renderStatusTotals(entries);
@@ -690,19 +564,17 @@ function renderTotalsAndFunnel(entries){
 function renderStatusTotals(entries){
   const el = document.getElementById('statusTotals');
   const sums = {};
-  const allNames = new Set(statusList);
-  entries.forEach(e=> Object.keys(e.statuses||{}).forEach(n=>allNames.add(n)));
-  const names = Array.from(allNames);
-  names.forEach(n=>sums[n]=0);
+  statusList.forEach(n=>sums[n]=0);
   entries.forEach(e=>{
     Object.entries(e.statuses||{}).forEach(([n,v])=>{ sums[n] = (sums[n]||0) + (Number(v)||0); });
   });
-  if(!names.length){
+  if(!statusList.length){
     el.innerHTML = '<div class="hint">Статусов ещё нет.</div>';
     return;
   }
-  el.innerHTML = names.map(n=>`
+  el.innerHTML = statusList.map(n=>`
     <div class="card">
+      <span class="del" onclick="removeStatusEverywhere('${n.replace(/'/g,"\\'")}')">✕</span>
       <div class="v">${(sums[n]||0).toLocaleString('ru-RU')}</div>
       <div class="k">${n}</div>
     </div>
@@ -753,7 +625,6 @@ async function refreshData(){
   const btn = document.getElementById('refreshBtn');
   btn.textContent = 'Обновляю...';
   try{
-    await loadStatuses();
     await renderAll();
     const d = document.getElementById('dateInput').value || todayStr();
     await loadEntryIntoForm(d);
@@ -768,49 +639,6 @@ function updateDateEcho(){
   document.getElementById('dateEcho').textContent = d ? fmtDate(d) : '';
 }
 
-function logout(){
-  const sure = confirm('Выйти из аккаунта? Данные в базе останутся без изменений — при следующем входе снова потребуется логин и пароль.');
-  if(!sure) return;
-  try{ sessionStorage.removeItem(AUTH_SESSION_KEY); }catch(e){}
-  location.reload();
-}
-
-// ---- Storm Mail: авторизация ----
-// Это простая имитация страницы входа на стороне браузера — она не
-// защищает данные (сама таблица управляется правами доступа Apps Script/
-// Google), а лишь закрывает доступ к интерфейсу от случайных посетителей.
-const AUTH_LOGIN = 'storm';
-const AUTH_PASS = 'admin';
-const AUTH_SESSION_KEY = 'storm-mail-auth';
-
-function showApp(){
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appContent').style.display = 'block';
-}
-
-function tryLogin(){
-  const user = document.getElementById('loginUser').value.trim();
-  const pass = document.getElementById('loginPass').value;
-  const err = document.getElementById('loginError');
-  if(user === AUTH_LOGIN && pass === AUTH_PASS){
-    err.textContent = '';
-    try{ sessionStorage.setItem(AUTH_SESSION_KEY, '1'); }catch(e){}
-    showApp();
-  } else {
-    err.textContent = 'Неверный логин или пароль';
-    document.getElementById('loginPass').value = '';
-    document.getElementById('loginPass').focus();
-  }
-}
-
-document.getElementById('loginBtn').addEventListener('click', tryLogin);
-document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginPass').focus(); });
-document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
-
-let alreadyAuthed = false;
-try{ alreadyAuthed = sessionStorage.getItem(AUTH_SESSION_KEY) === '1'; }catch(e){}
-if(alreadyAuthed){ showApp(); } else { document.getElementById('loginUser').focus(); }
-
 // ---- init ----
 (async function init(){
   buildMetricsGrid();
@@ -822,17 +650,22 @@ if(alreadyAuthed){ showApp(); } else { document.getElementById('loginUser').focu
     await loadEntryIntoForm(d);
   });
 
+  document.getElementById('saveCfgBtn').addEventListener('click', saveConfig);
   document.getElementById('testCfgBtn').addEventListener('click', testConfig);
-  document.getElementById('resetBtn').addEventListener('click', logout);
   document.getElementById('addStatusBtn').addEventListener('click', addStatus);
   document.getElementById('saveBtn').addEventListener('click', saveEntry);
   document.getElementById('deleteBtn').addEventListener('click', deleteCurrentEntry);
   document.getElementById('refreshBtn').addEventListener('click', refreshData);
 
-  loadConfig();
-  await loadStatuses();
-  await renderAll();
-  await loadEntryIntoForm(todayStr());
+  loadConfigIntoForm();
+  if(WEB_APP_URL){
+    document.getElementById('cfgPanel').removeAttribute('open');
+    await renderAll();
+    await loadEntryIntoForm(todayStr());
+  } else {
+    updateConnPill(false);
+    document.getElementById('cfgHelp').textContent = 'Вставьте URL веб-приложения и нажмите «Сохранить URL».';
+  }
 })();
 </script>
 </body>
