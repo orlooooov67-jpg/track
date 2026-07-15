@@ -14,9 +14,11 @@
  *     Это значение нужно будет указать в HTML-странице (константа API_KEY).
  *  4. Settings → Networking → Generate Domain — получите публичный URL вида
  *     https://storm-mail-backend-production.up.railway.app
- *  5. Этот URL вставьте в HTML-страницу в константу API_BASE_URL и запушьте на GitHub Pages.
+ *  5. Этот же сервис теперь отдаёт и саму страницу index.html по адресу "/" —
+ *     отдельно хостить на GitHub Pages не нужно.
  */
 
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -24,6 +26,9 @@ const { Pool } = require('pg');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
+
+// Отдаёт index.html и любые другие статические файлы, лежащие в корне репозитория.
+app.use(express.static(path.join(__dirname)));
 
 const API_KEY = process.env.API_KEY || '';
 const DEFAULT_STATUSES = ['CallBack', 'Hung Up', 'Depositor', 'N/A', 'No Interest', 'Wrong info', 'Wrong Number', 'Wrong Country', 'Trash', 'Other'];
@@ -62,8 +67,9 @@ async function initDb() {
   `);
 }
 
+// Главная страница — отдаём саму HTML-страницу трекера вместо текстовой заглушки.
 app.get('/', (req, res) => {
-  res.type('text').send('Storm Mail backend is running.');
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.get('/api/health', async (req, res) => {
