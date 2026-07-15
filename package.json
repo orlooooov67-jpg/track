@@ -1,8 +1,18 @@
 {
-  "name": "leads-tracker",
+  "name": "storm-mail-backend",
   "version": "1.0.0",
   "private": true,
+  "description": "Storm Mail leads-tracker backend API (Express + Postgres) for Railway deployment",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "start": "npx --yes serve -s . -l ${PORT:-3000}"
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "pg": "^8.11.5"
   }
 }
