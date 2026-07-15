@@ -170,7 +170,7 @@
     <div class="hint" id="cfgHelp"></div>
     <div class="cfg-row" style="margin-top:18px;border-top:1px dashed var(--line);padding-top:16px;">
       <button class="btn danger" id="resetBtn" type="button">Стереть все локальные данные</button>
-      <span class="hint" style="margin:0;">Удалит локально сохранённые дни, статусы и URL таблицы на этом устройстве. В самой Google Таблице данные не тронет.</span>
+      <span class="hint" style="margin:0;">Удалит локально сохранённые дни, статусы и URL таблицы на этом устройстве (localStorage браузера). В самой Google Таблице данные не тронет.</span>
     </div>
   </details>
 
@@ -228,6 +228,36 @@
 </div>
 
 <script>
+// Полифилл window.storage поверх обычного localStorage браузера.
+// Нужен только для автономного хостинга (GitHub Pages и т.п.) —
+// внутри Claude.ai используется настоящее персистентное хранилище.
+// Данные хранятся локально в браузере на этом устройстве.
+if (!window.storage) {
+  window.storage = {
+    async get(key) {
+      const v = localStorage.getItem(key);
+      if (v === null) throw new Error('not found');
+      return { key, value: v, shared: false };
+    },
+    async set(key, value) {
+      localStorage.setItem(key, value);
+      return { key, value, shared: false };
+    },
+    async delete(key) {
+      localStorage.removeItem(key);
+      return { key, deleted: true, shared: false };
+    },
+    async list(prefix) {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!prefix || k.startsWith(prefix)) keys.push(k);
+      }
+      return { keys, prefix, shared: false };
+    }
+  };
+}
+
 const METRICS = [
   {key:'opened', label:'Открыто сообщение'},
   {key:'clicked', label:'Кликнуло'},
